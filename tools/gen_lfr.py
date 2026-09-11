@@ -52,17 +52,25 @@ def main():
 
     print(f"generating n={args.n} mu={args.mu} avg_deg={args.avg_degree} ...")
 
-    # This can fail to converge on awkward parameter combinations. If it does,
-    # nudge avg_degree up or min_community down rather than fighting it.
-    G = nx.LFR_benchmark_graph(
-        n=args.n,
-        tau1=args.tau1,
-        tau2=args.tau2,
-        mu=args.mu,
-        average_degree=args.avg_degree,
-        min_community=args.min_community,
-        seed=args.seed,
-    )
+    G = None
+    max_attempts = 50
+    for attempt in range(max_attempts):
+        current_seed = args.seed + attempt if args.seed is not None else None
+        try:
+            G = nx.LFR_benchmark_graph(
+                n=args.n,
+                tau1=args.tau1,
+                tau2=args.tau2,
+                mu=args.mu,
+                average_degree=args.avg_degree,
+                min_community=args.min_community,
+                max_iters=2000,
+                seed=current_seed,
+            )
+            break
+        except Exception as e:
+            if attempt == max_attempts - 1:
+                sys.exit(f"Failed to generate LFR graph after {max_attempts} attempts: {e}")
 
     # LFR attaches each node's community as a set on the node itself.
     communities = {}

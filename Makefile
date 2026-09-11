@@ -1,7 +1,7 @@
 CXX      ?= g++
-CXXFLAGS := -O2 -std=c++17 -Wall -Wextra -march=native -Isrc
-DBGFLAGS := -O0 -g -std=c++17 -Wall -Wextra -Isrc
-LDFLAGS  :=
+CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -Isrc
+DBGFLAGS ?= -O0 -g -std=c++17 -Wall -Wextra -Isrc
+LDFLAGS  ?=
 
 # Uncomment once you add OpenMP to the local-moving loop in Phase 4.
 # CXXFLAGS += -fopenmp
