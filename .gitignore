@@ -1,0 +1,11 @@
+bin/
+data/*
+!data/.gitkeep
+bench/*
+!bench/.gitkeep
+*.o
+*.edges
+*.truth
+*.bin
+__pycache__/
+.DS_Store

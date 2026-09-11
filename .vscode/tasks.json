@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "make",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "build (debug)",
+      "type": "shell",
+      "command": "make debug",
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "clean",
+      "type": "shell",
+      "command": "make clean",
+      "problemMatcher": []
+    },
+    {
+      "label": "gen lfr 1k",
+      "type": "shell",
+      "command": "python3 tools/gen_lfr.py --n 1000 --mu 0.1 --out data/lfr_1k",
+      "problemMatcher": []
+    },
+    {
+      "label": "stats on lfr 1k",
+      "type": "shell",
+      "command": "./bin/stats data/lfr_1k.edges",
+      "dependsOn": "build",
+      "problemMatcher": []
+    }
+  ]
+}

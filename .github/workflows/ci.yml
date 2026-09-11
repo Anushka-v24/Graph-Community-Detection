@@ -1,0 +1,82 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }} - ${{ matrix.cxx }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        cxx: [ g++, clang++ ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install networkx
+
+      - name: Build release and sanitizer debug binaries
+        run: |
+          make clean
+          make all CXX=${{ matrix.cxx }}
+          make debug CXX=${{ matrix.cxx }}
+
+      - name: Generate LFR benchmark graphs
+        run: |
+          mkdir -p data bench
+          python3 tools/gen_lfr.py --n 1000 --mu 0.1 --seed 42 --out data/lfr_1k_mu01
+          python3 tools/gen_lfr.py --n 1000 --mu 0.4 --seed 42 --out data/lfr_1k_mu04
+          python3 tools/gen_lfr.py --n 1000 --mu 0.6 --seed 42 --out data/lfr_1k_mu06
+
+      - name: Run graph stats profiler
+        run: |
+          ./bin/stats data/lfr_1k_mu01.edges
+          ./bin/stats data/lfr_1k_mu04.edges
+          ./bin/stats data/lfr_1k_mu06.edges
+
+      - name: Run Louvain community detection benchmarks
+        run: |
+          ./bin/community data/lfr_1k_mu01.edges data/lfr_1k_mu01.truth --algo louvain
+          ./bin/community data/lfr_1k_mu04.edges data/lfr_1k_mu04.truth --algo louvain
+          ./bin/community data/lfr_1k_mu06.edges data/lfr_1k_mu06.truth --algo louvain
+
+      - name: Run Leiden community detection benchmarks
+        run: |
+          ./bin/community data/lfr_1k_mu01.edges data/lfr_1k_mu01.truth --algo leiden
+          ./bin/community data/lfr_1k_mu04.edges data/lfr_1k_mu04.truth --algo leiden
+          ./bin/community data/lfr_1k_mu06.edges data/lfr_1k_mu06.truth --algo leiden
+
+      - name: Run Sanitizer tests (ASan + UBSan)
+        run: |
+          ./bin/stats_debug data/lfr_1k_mu01.edges
+          ./bin/community_debug data/lfr_1k_mu01.edges data/lfr_1k_mu01.truth --algo louvain
+          ./bin/community_debug data/lfr_1k_mu01.edges data/lfr_1k_mu01.truth --algo leiden
+          ./bin/community_debug data/lfr_1k_mu04.edges data/lfr_1k_mu04.truth --algo leiden
+          ./bin/community_debug data/lfr_1k_mu06.edges data/lfr_1k_mu06.truth --algo leiden
+
+      - name: Display benchmark results
+        run: |
+          cat bench/results.csv
+
+      - name: Upload benchmark results artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.cxx == 'g++'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: bench/results.csv
