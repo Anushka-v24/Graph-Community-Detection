@@ -13,7 +13,6 @@
 #include <cstdio>
 #include <numeric>
 
-using namespace std;
 using namespace gcd;
 
 int main(int argc, char** argv) {

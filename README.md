@@ -6,7 +6,7 @@ An incremental community detection engine for continuously updating graphs.
 and answer filtered community queries in bounded time — without recomputing
 from scratch on every update.
 
-Current status: **Phase 2 Complete — static Louvain & Leiden + modularity/NMI harness done.** Benchmarking against NetworKit/igraph (Phase 3) and the Incremental Update Engine (Phase 4) are next.
+Current status: **Phase 2 Complete — static Louvain & Leiden + modularity/NMI harness, a DFS-verified connectivity guarantee, and a first query layer over the result (DSU + topo-sort).** Benchmarking against NetworKit/igraph (Phase 3) and the Incremental Update Engine (Phase 4) are next.
 
 ---
 
@@ -37,15 +37,19 @@ Install the **C/C++** extension (`ms-vscode.cpptools`). Then:
 ## Layout
 
 ```
-src/csr.hpp        Compressed Sparse Row adjacency — the core data structure
-src/stats.cpp      Loads a graph, prints node/edge/degree/memory stats
-src/louvain.hpp    Louvain method: local moving + aggregation
-src/leiden.hpp     Leiden method: fast local moving + sub-community refinement + coarsening
-src/metrics.hpp    Modularity and NMI scoring
-src/community.cpp  Runs Louvain/Leiden, reports modularity/NMI, logs to bench/
-tools/gen_lfr.py   LFR benchmark graphs with ground-truth communities
-data/              Graph files (gitignored)
-bench/             Benchmark results and plots (results.csv from bin/community)
+src/csr.hpp           Compressed Sparse Row adjacency — the core data structure
+src/stats.cpp         Loads a graph, prints node/edge/degree/memory stats
+src/louvain.hpp       Louvain method: local moving + aggregation
+src/leiden.hpp        Leiden method: fast local moving + sub-community refinement + coarsening
+src/metrics.hpp       Modularity and NMI scoring
+src/dsu.hpp           Union-Find (Disjoint Set) — path compression + union by size
+src/connectivity.hpp  DFS pass that guarantees every community is one connected piece
+src/topo.hpp          Kahn's-algorithm topological sort, used to validate the hierarchy DAG
+src/query.hpp         Query layer: same-community, DSU connectivity, multi-level lookups
+src/community.cpp     Runs Louvain/Leiden, enforces connectivity, reports metrics, logs to bench/
+tools/gen_lfr.py      LFR benchmark graphs with ground-truth communities
+data/                 Graph files (gitignored)
+bench/                Benchmark results and plots (results.csv from bin/community)
 ```
 
 ---
@@ -103,11 +107,28 @@ credible; everything after extends it.
 
 - [x] Static Louvain (`src/louvain.hpp`)
 - [x] Modularity + NMI harness (`src/metrics.hpp`, `bin/community`)
-- [x] Leiden (`src/leiden.hpp`) — fast local moving with queue + sub-community refinement to prevent disconnected communities
-- [x] Sanity numbers on `data/lfr_1k_mu{01,04,06}`: 
-      - Louvain: NMI 1.00 / 0.74 / 0.16 (6-8 ms)
-      - Leiden:  NMI 0.99 / 0.76 / 0.17 (5-6 ms)
-      Tracks expected difficulty table and provides baseline for Phase 4 incremental drift curves.
+- [x] Leiden (`src/leiden.hpp`) — fast local moving with queue + sub-community refinement
+- [x] Connectivity guarantee (`src/connectivity.hpp`) — Leiden's refinement phase is
+      *supposed* to guarantee every community is connected via a well-connectedness
+      threshold, but that threshold has twice been implemented as `x < thresh && x == 0.0`,
+      which always collapses to just `x == 0.0` and silently drops the threshold
+      entirely. Rather than trust that math a third time, every run now runs an
+      explicit DFS over each community's induced subgraph afterward and splits
+      anything that isn't actually one connected piece — a guarantee proven by
+      construction instead of assumed from a formula.
+- [x] Query layer (`src/query.hpp`) over a finished result: O(1) same-community
+      lookups, a DSU-backed (`src/dsu.hpp`) raw connectivity index that previews
+      Phase 4's incremental idea (`add_edge()` updates it without a full rerun),
+      and multi-level lookups against the aggregation hierarchy — validated once
+      with Kahn's-algorithm topological sort (`src/topo.hpp`) to prove it's
+      actually a DAG before trusting it.
+- [x] Sanity numbers on `data/lfr_1k_mu{01,04,06}` (post connectivity-fix, 0 splits
+      needed on any of them — these graphs are small/easy enough not to trigger the
+      failure mode, which is expected; the guarantee matters more at scale):
+      - Louvain: NMI 1.00 / 0.74 / 0.16
+      - Leiden:  NMI 1.00 / 0.76 / 0.17
+      Tracks the expected difficulty table and provides a baseline for Phase 4
+      incremental drift curves.
 
 ## Metrics tracked
 

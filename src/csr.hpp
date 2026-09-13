@@ -20,8 +20,6 @@
 #include <stdexcept>
 #include <utility>
 
-using namespace std;
-
 namespace gcd {
 
 using node_t = uint32_t;  // up to ~4.2B nodes

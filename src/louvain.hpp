@@ -28,8 +28,6 @@
 #include <unordered_map>
 #include <vector>
 
-using namespace std;
-
 namespace gcd {
 
 namespace detail {
@@ -149,7 +147,16 @@ inline node_t renumber(std::vector<node_t>& comm) {
 // Run Louvain to convergence. resolution > 1 favors more, smaller
 // communities; < 1 favors fewer, larger ones. 1.0 is standard modularity.
 // Returns comm[v] = final community id for each original node, dense 0..k-1.
-inline std::vector<node_t> louvain(const CSR& g, double resolution = 1.0) {
+//
+// If hierarchy_out is non-null, it receives membership[v] snapshotted
+// after every aggregation round — hierarchy_out->back() equals the
+// returned vector. That lets a caller ask "what was v's community if we
+// only zoom out N rounds" instead of only the fully-collapsed answer.
+// See query.hpp.
+inline std::vector<node_t> louvain(const CSR& g, double resolution = 1.0,
+                                    std::vector<std::vector<node_t>>* hierarchy_out = nullptr) {
+    if (hierarchy_out) hierarchy_out->clear();
+
     // membership[v] = which current-level node original node v belongs to,
     // composed across levels as the graph shrinks.
     std::vector<node_t> membership(g.n);
@@ -166,6 +173,7 @@ inline std::vector<node_t> louvain(const CSR& g, double resolution = 1.0) {
         for (size_t v = 0; v < membership.size(); ++v) {
             membership[v] = level_comm[membership[v]];
         }
+        if (hierarchy_out) hierarchy_out->push_back(membership);
 
         // Stop once a pass made no move, or the graph has fully collapsed
         // to one node per community and aggregating again would be a no-op.

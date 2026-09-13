@@ -19,8 +19,6 @@
 #include <unordered_map>
 #include <vector>
 
-using namespace std;
-
 namespace gcd {
 
 // Q = (1/2m) * sum over ordered (u,v) pairs of [ w(u,v) - k_u*k_v/(2m) ]

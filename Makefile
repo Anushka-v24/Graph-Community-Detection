@@ -18,7 +18,10 @@ debug: $(BIN)/stats_debug $(BIN)/community_debug
 $(BIN)/stats: src/stats.cpp src/csr.hpp | $(BIN)
 	$(CXX) $(CXXFLAGS) -o $@ src/stats.cpp $(LDFLAGS)
 
-$(BIN)/community: src/community.cpp src/csr.hpp src/louvain.hpp src/leiden.hpp src/metrics.hpp | $(BIN)
+COMMUNITY_DEPS := src/community.cpp src/csr.hpp src/louvain.hpp src/leiden.hpp src/metrics.hpp \
+                  src/connectivity.hpp src/query.hpp src/dsu.hpp src/topo.hpp
+
+$(BIN)/community: $(COMMUNITY_DEPS) | $(BIN)
 	$(CXX) $(CXXFLAGS) -o $@ src/community.cpp $(LDFLAGS)
 
 # Address + UB sanitizers on. Slow, but they catch the kind of off-by-one in
@@ -27,7 +30,7 @@ $(BIN)/community: src/community.cpp src/csr.hpp src/louvain.hpp src/leiden.hpp s
 $(BIN)/stats_debug: src/stats.cpp src/csr.hpp | $(BIN)
 	$(CXX) $(DBGFLAGS) -fsanitize=address,undefined -o $@ src/stats.cpp -fsanitize=address,undefined
 
-$(BIN)/community_debug: src/community.cpp src/csr.hpp src/louvain.hpp src/leiden.hpp src/metrics.hpp | $(BIN)
+$(BIN)/community_debug: $(COMMUNITY_DEPS) | $(BIN)
 	$(CXX) $(DBGFLAGS) -fsanitize=address,undefined -o $@ src/community.cpp -fsanitize=address,undefined
 
 $(BIN):
